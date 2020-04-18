@@ -151,6 +151,13 @@ ui <-
                 width = "100%", 
                 selected = c("Asia", "Europe", "North America", "Latin America")),
     
+    selectInput(inputId = 'countries_input', 
+                label = 'Countries',
+                choices = c("List of ALL countries will go here"), multiple = TRUE, 
+                selectize = TRUE, 
+                width = "100%", 
+                selected = c("List of ALL countries will go here")),
+    
     # uiOutput('highlight2'),
     
     # selectInput(inputId = "cases_deaths", label = "Cases or deaths", selected = "deaths", 
@@ -185,7 +192,7 @@ ui <-
     #     
     # shinyWidgets::switchInput(inputId = "relative", label = "Relative/million", value = FALSE, size = "mini", labelWidth = "80%")
     # ),
-    HTML("<BR><BR>"),
+    # HTML("<BR><BR>"),
     
     div( HTML("&nbsp;&nbsp;"), style="display:inline-block;65%;text-align: center;",
         bookmarkButton(label = "URL")
@@ -199,7 +206,15 @@ ui <-
     
     uiOutput("WARNING"),
     
-    hr()
+    hr(),
+    
+    p(HTML(
+        paste0(
+            a("Johns Hopkins Data", href="https://covid19api.com/", target = "_blank"), " updated on: [DATE WILL GO HERE]"#, as.character(file_info_JHU), " GMT"
+            # "<BR>", a("worldometers.info", href="https://www.worldometers.info/coronavirus/#countries", target = "_blank"), " (last point) updated on: ", as.POSIXct(time_worldometer, format = "%B %d, %Y, %H:%M", tz = "GMT"), "GMT"
+        )
+    )
+    )
     
     # HTML(paste0("Using code and ideas from ",  
     #         a("@JonMinton", href="https://github.com/JonMinton/COVID-19", target = "_blank"), ", ", 
@@ -214,15 +229,6 @@ ui <-
                 
         # SHOW PLOT
         mainPanel(
-            p(HTML(
-                paste0(
-                    a("Johns Hopkins Data", href="https://covid19api.com/", target = "_blank"), " updated on: "#, as.character(file_info_JHU), " GMT"
-                    # "<BR>", a("worldometers.info", href="https://www.worldometers.info/coronavirus/#countries", target = "_blank"), " (last point) updated on: ", as.POSIXct(time_worldometer, format = "%B %d, %Y, %H:%M", tz = "GMT"), "GMT"
-                    )
-                )
-              ),
-            
-            hr(),
             
             plotOutput("distPlot", height = "900px", width = "120%"),
             
@@ -778,7 +784,7 @@ server <- function(input, output, session) {
                 final_plot1(),
                 final_plot2(),
                 nrow = 2,
-                labels = c("A)", "B)"),
+                # labels = c("A)", "B)"),
                 rel_heights = c(1, 1)
                 # nrow = 3,
                 # labels = c("", "A)", "B)"),
