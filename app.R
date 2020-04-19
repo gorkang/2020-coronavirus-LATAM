@@ -395,7 +395,7 @@ server <- function(input, output, session) {
     
     
 
-# final_df1 creation ------------------------------------------------------
+# final_df1() creation ------------------------------------------------------
 
     final_df1 = reactive({ 
         
@@ -411,8 +411,6 @@ server <- function(input, output, session) {
 
             # Launch data preparation
             if (!is.null(INPUT_countries_plot())) {
-                
-                # Data preparation --------------------------------------------------------
                 
                 dta_temp = data_preparation(
                     data_source = "JHU",
@@ -489,11 +487,8 @@ server <- function(input, output, session) {
             # message("INPUT_highlight = ", INPUT_highlight, "\nINPUT_min_n = ", INPUT_min_n, "\nINPUT_cases_deaths = ", INPUT_cases_deaths, "\nINPUT_countries_plot = ", INPUT_countries_plot, "\nINPUT_relative = ", INPUT_relative, "\nINPUT_accumulated_daily_pct = ", INPUT_accumulated_daily_pct, "\n")
             
             # Launch data preparation
-            data_preparation(cases_deaths = INPUT_cases_deaths, countries_plot = INPUT_countries_plot(), min_n = INPUT_min_n, relative = INPUT_relative)
 
             if (!is.null(INPUT_countries_plot())) {
-                
-                # Data preparation --------------------------------------------------------
                 
                 dta_temp = data_preparation(
                     data_source = "JHU",
@@ -556,8 +551,12 @@ server <- function(input, output, session) {
         })
     }) 
 
-
+    # Growth line ---------------
     growth_line = reactive({
+
+        withProgress(message = 'Growth line', value = 2, min = 0, max = 4, {
+            
+            INPUT_min_n = 10
         
         # LIMITS of DATA
         # if (INPUT_accumulated_daily_pct == "daily") {
@@ -565,41 +564,63 @@ server <- function(input, output, session) {
         # # } else if (input$accumulated_daily_pct == "%") {
         # #     MAX_y = max(final_df2()$diff_pct, na.rm = TRUE) * 100
         # } else {
-            MAX_y = max(final_df2()$value, na.rm = TRUE) * 1.1
+            MAX_y = max(final_df1()$value, na.rm = TRUE) * 1.1
         # }
         
         # To avoid error
-        if (is.infinite(max(final_df2()$days_after_100, na.rm = TRUE))) {
+        if (is.infinite(max(final_df1()$days_after_100, na.rm = TRUE))) {
             max_finaldf_days_after_100 = 10 
         } else {
-            max_finaldf_days_after_100 = max(final_df2()$days_after_100, na.rm = TRUE)
+            max_finaldf_days_after_100 = max(final_df1()$days_after_100, na.rm = TRUE)
         }
         
         line_factor = 1
-
             tibble(
                 value = cumprod(c(INPUT_min_n, rep((100 + INPUT_growth) / 100, line_factor * max_finaldf_days_after_100))),
                 days_after_100 = 0:(line_factor * max_finaldf_days_after_100)) %>% 
                 filter(value <= MAX_y)
-        
+    
+        })    
     })
     
     
-    # Text annotation Latam ---------------------------------------------------
-    
 
     
-    # Prepare plot
+
+    # final_plot1() -----------------------------------------------------------
+
     final_plot1 <- reactive({
+        
+        req(final_df1())
         
         withProgress(message = 'Preparing plot 1', value = 3, min = 0, max = 4, {
             
+            DF_plot = final_df1() %>% ungroup()
             
-            DF_plot = final_df1()
+            # Prepare vars for overlay
+            reference_continent = DF_plot %>% filter(days_after_100 == max(days_after_100)) %>% head(1) %>% pull("continent_name")
+            reference_country = DF_plot %>% filter(days_after_100 == max(days_after_100)) %>% head(1) %>% pull("country")
+            list_continents_plot = DF_plot %>% ungroup() %>%  distinct(continent_name) %>% pull(continent_name)
+            list_remaining_continents_plot = list_continents_plot[!list_continents_plot %in% reference_continent]
             
+            if (!is_empty(list_remaining_continents_plot)) {
             
-            ann_position = 1:nrow(DF_plot %>% filter(continent_name %in% c("Europe", "Latin America", "North America")) %>% ungroup() %>% distinct(continent_name)) %>% 
-                map( ~ max(DF_plot %>% filter(continent_name == DF_plot %>% filter(continent_name %in% c("Europe", "Latin America", "North America")) %>% ungroup() %>% arrange(continent_name) %>%  distinct(continent_name) %>% .[.x, 1]) %>% pull(days_after_100))) %>% unlist()
+                ann_position = 
+                    1:nrow(DF_plot %>% filter(continent_name %in% list_remaining_continents_plot) %>% ungroup() %>% distinct(continent_name)) %>%
+                    map(~ max(
+                        DF_plot %>% 
+                            filter(continent_name == list_remaining_continents_plot[.x]) %>% 
+                            pull(days_after_100))) %>% unlist()
+                
+                label_headstart = paste0("[", reference_country, " headstart]")
+                
+            
+            } else {
+                # If only one continent remaining
+                list_remaining_continents_plot = reference_continent
+                ann_position = Inf
+                label_headstart = ""
+            }
             
             
             ann_text <-
@@ -609,8 +630,8 @@ server <- function(input, output, session) {
                     lab = "text",
                     country = NA_character_,
                     continent_name = factor(
-                        c("Europe", "Latin America", "North America"),
-                        levels = c("Europe", "Latin America", "North America")
+                        list_remaining_continents_plot, 
+                        levels = list_remaining_continents_plot
                     )
                 )
             
@@ -619,8 +640,6 @@ server <- function(input, output, session) {
             # Define which countries get a smooth (have enough points)
             VALUE_span = 3
             counts_filter = DF_plot %>% count(country) %>% filter(n > VALUE_span)
-            
-            
             
             
             
@@ -637,7 +656,7 @@ server <- function(input, output, session) {
                 scale_x_continuous(breaks = seq(0, max(final_df1()$days_after_100, na.rm = TRUE) + 1, 10)) +
                 labs(
                     x = paste0("Days after ",  INPUT_min_n ," accumulated ", "deaths"),
-                    y = paste0("Confirmed ", "accumulated", " ", "deaths", " (log)",  if (relative == TRUE) " / million people")
+                    y = paste0("Confirmed ", "accumulated", " ", "deaths", " (log)")
                 ) +
                 theme_minimal(base_size = 12) +
                 
@@ -673,18 +692,19 @@ server <- function(input, output, session) {
             x_axis = max(growth_line()$days_after_100[which_position], na.rm = TRUE) - 3.5
             y_axis = max(growth_line()$value[which_position], na.rm = TRUE)  # MAX 
             
+
             p_final1 <- p_temp + 
                 annotate(geom = "text",
                          size = 2.8,
                          x = x_axis, 
                          y = y_axis, 
-                         angle = 71,
+                         angle = 70,
                          alpha = .8,
                          label = paste0(INPUT_growth, "% growth")) +
                 
                 # Country label
                 ggrepel::geom_label_repel(aes(label = name_end), show.legend = FALSE, segment.color = "grey", segment.size  = .15, alpha = .75, size = 3, seed = 30) +
-                geom_rect(data = data.frame(continent_name = c("Europe", "Latin America", "North America")),
+                geom_rect(data = data.frame(continent_name = list_remaining_continents_plot),
                           aes(
                               xmin = ann_position,
                               xmax = Inf,
@@ -693,7 +713,7 @@ server <- function(input, output, session) {
                           alpha = 0.2,
                           fill = "grey",
                           inherit.aes = FALSE) +
-                geom_text(data = ann_text, label = "[China's headstart]", size = 3, alpha = .8, color = "black") +    
+                geom_text(data = ann_text, label = label_headstart, size = 3, alpha = .8, color = "black") +    
                 facet_grid( ~ continent_name) +
                 theme(aspect.ratio = 1)
             
@@ -703,10 +723,14 @@ server <- function(input, output, session) {
         })
         
     })
+    
 
-    # Prepare plot
+    # final_plot2() -----------------------------------------------------------
+    
     final_plot2 <- reactive({
 
+        req(final_df2())
+        
         withProgress(message = 'Preparing plot 2', value = 3, min = 0, max = 4, {
 
             # Define which countries get a smooth (have enough points)
@@ -777,6 +801,9 @@ server <- function(input, output, session) {
     
     final_plot12 <- reactive({
         
+        req(final_plot1())
+        req(final_plot2())
+        
         withProgress(message = 'Rendering plot', value = 4, min = 0, max = 4, {
             
             cowplot::plot_grid(
@@ -798,46 +825,22 @@ server <- function(input, output, session) {
     # Show plot
     output$distPlot <- renderCachedPlot({
         
-        final_plot12()
+        req(final_plot12())
         
+        withProgress(message = 'Show plot', value = 4, min = 0, max = 4, {
+            
+        final_plot12()
+            
+        })
     }, cacheKeyExpr = list(final_df2(), growth_line()))
     
-        
-    # Show table
-    # output$mytable = DT::renderDataTable({
-    #     DT::datatable(final_df2() %>%
-    #                       arrange(desc(time), country) %>% 
-    #                       select( -highlight, -name_end) %>%
-    #                       rename_(.dots=setNames("value", paste0(input$cases_deaths, "_sum"))) %>% 
-    #                       rename_(.dots=setNames("diff", paste0(input$cases_deaths, "_diff"))) %>% 
-    #                       rename_(.dots=setNames("days_after_100", paste0("days_after_", INPUT_min_n))),
-    #                       filter = 'top',
-    #                   rownames = FALSE, 
-    #                   options = list(pageLength = 10, 
-    #                                  dom = 'ltipr',
-    #                                  autoWidth = FALSE)) %>% 
-    #         DT::formatPercentage(c("diff_pct"), 2)
-    # })
-    
+
     
     output$downloadPlot <- downloadHandler(
         filename = function() { paste(Sys.Date(), "_corona.png", sep = "") },
         content = function(file) { ggsave(file, plot = final_plot12(), device = "png", width = 14, height = 10) }
     )
 
-    # output$downloadData <- downloadHandler(
-    #     filename = function() { 
-    #         paste("dataset-", Sys.Date(), ".csv", sep="")
-    #     },
-    #     content = function(file) {
-    #         write.csv(final_df2() %>%
-    #                       arrange(desc(time), country) %>% 
-    #                       select(-name_end, -highlight) %>%
-    #                       rename_(.dots=setNames("value", ifelse(input$cases_deaths == "cases", "cases_sum", "deaths_sum"))) %>% 
-    #                       rename_(.dots=setNames("diff", ifelse(input$cases_deaths == "cases", "cases_diff", "deaths_diff"))) %>% 
-    #                       rename_(.dots=setNames("days_after_100", paste0("days_after_", INPUT_min_n))), file)
-    #     })
-    
 }
 
 # Run the application 
