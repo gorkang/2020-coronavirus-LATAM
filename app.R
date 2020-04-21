@@ -1,23 +1,19 @@
 
 # Libraries ---------------------------------------------------------------
 
+library(cowplot)
 library(dplyr)
-library(DT)
 library(ggplot2)
 library(ggrepel)
 library(httr)
-# library(jsonlite)
+library(purrr)
 library(readr)
-library(rvest)
-library(tidyr)
 library(scales)
 library(shiny)
-library(shinythemes)
-library(shinyWidgets)
 library(shinyjs)
+library(shinythemes)
+library(tidyr)
 library(vroom)
-library(cowplot)
-library(purrr)
 
 
 
@@ -32,11 +28,15 @@ source(here::here("R/fetch_worldometers_safely.R"))
 source(here::here("R/data-download.R"))
 source(here::here("R/data-preparation.R"))
 
+source(here::here("R/data-preparation-menu.R"))
+
 
 # Launch data_download 
 minutes_to_check_downloads = 30 # Every 12 minutes
 auto_invalide <- reactiveTimer(minutes_to_check_downloads * 60 * 1000) 
 
+file_info_JHU <- file.info("outputs/raw_JH.csv")$mtime
+if( is_empty(file_info_JHU)) file_info_JHU = "..."
 
 
 dta_raw = read_csv(here::here("outputs/raw_data.csv"),
@@ -151,12 +151,12 @@ ui <-
                 width = "100%", 
                 selected = c("Asia", "Europe", "North America", "Latin America")),
     
-    selectInput(inputId = 'countries_input', 
-                label = 'Countries',
-                choices = c("List of ALL countries will go here"), multiple = TRUE, 
+    selectInput(inputId = 'filter_countries', 
+                label = 'Filter out countries',
+                choices = c(" ", V1_alternatives), multiple = TRUE, 
                 selectize = TRUE, 
                 width = "100%", 
-                selected = c("List of ALL countries will go here")),
+                selected = c(" ")),
     
     # uiOutput('highlight2'),
     
@@ -210,7 +210,7 @@ ui <-
     
     p(HTML(
         paste0(
-            a("Johns Hopkins Data", href="https://covid19api.com/", target = "_blank"), " updated on: [DATE WILL GO HERE]"#, as.character(file_info_JHU), " GMT"
+            a("Johns Hopkins Data", href="https://covid19api.com/", target = "_blank"), " updated on: ", as.character(file_info_JHU), " GMT"
             # "<BR>", a("worldometers.info", href="https://www.worldometers.info/coronavirus/#countries", target = "_blank"), " (last point) updated on: ", as.POSIXct(time_worldometer, format = "%B %d, %Y, %H:%M", tz = "GMT"), "GMT"
         )
     )
@@ -243,6 +243,18 @@ ui <-
             #     align = "center"
             #     ),
             
+            span(
+                div(
+                    HTML(
+                        paste0(
+            "<B>Evolution patterns of Coronavirus deaths by regions and countries</B> <BR><BR>
+            <B>(Top)</B> Temporal dynamics of accumulated deaths.  The accumulated deaths grow over time for all the countries and regions by days since the first 10 reported deaths. The slope represents the rate of growth, and the length of the trajectory, the number of days since the death toll reached 10 for that country. This shows the time scale of the epidemic for each country and region. A dashed line of 30% growth in each region help to identify the similar growing rate across countries and regions.  A gray headset is shown to help visualize the time gap in comparison with the start of the COVID-19 outbreak in China. It can be appreciated how the LACs are, compared to most countries/regions, in the early days, although their growth is in line with Europe or North America. <BR><BR>
+            <B>(Bottom)</B> Exponential growth of confirmed daily deaths by countries and regions. Rate of change shown as daily new deaths (weekly average) divided by total deaths. Moving in the diagonal implies the growth rate is exponential. As we can appreciate, all regions except Asia are growing exponentially, with Europe stating to slowly deviate from the diagonal. Although the number of deaths is still low in most LACs (except Brazil), the rate of change is clearly exponential and resembling other regions. Plots present a line for each country, plus a bold line with a smooth conditional mean by region (using the loess method). Both panels show how the epidemic started relatively late in LACs, which gave them a time buffer to react. Despite this, the global trajectories of the regions clearly suggest exponential growth similar to Europe or North America. <BR><BR>
+            Data retrieved from Johns Hopkins CSSE (https://github.com/CSSEGISandData/COVID-19) through https://covid19api.com/. The code for the creation of these plots can be found in https://github.com/gorkang/2020-coronavirus-LATAM."
+            )),
+            
+            align = "justify", 
+            style = "color:darkgrey")),
             hr(),
             span(
                 div(
@@ -379,16 +391,16 @@ server <- function(input, output, session) {
     
     
     INPUT_countries_plot = reactive({
+
         # COUNTRIES
         dta_raw %>% 
             left_join(DF_population_countries %>% select(country, continent_name)) %>%
             filter(continent_name %in% input$continent_name_input) %>% 
             drop_na(continent_name) %>% 
             filter(deaths_sum > 1) %>% 
-            distinct(country) %>% pull(country)
-        
-        # INPUT_countries_plot = countries_plot
-        
+            distinct(country) %>% 
+            filter(! country %in% input$filter_countries) %>% 
+            pull(country)
         
     })
 
@@ -595,24 +607,24 @@ server <- function(input, output, session) {
         
         withProgress(message = 'Preparing plot 1', value = 3, min = 0, max = 4, {
             
-            DF_plot = final_df1() %>% ungroup()
+            # DF_plot = final_df1() %>% ungroup()
             
             # Prepare vars for overlay
-            reference_continent = DF_plot %>% filter(days_after_100 == max(days_after_100)) %>% head(1) %>% pull("continent_name")
-            reference_country = DF_plot %>% filter(days_after_100 == max(days_after_100)) %>% head(1) %>% pull("country")
-            list_continents_plot = DF_plot %>% ungroup() %>%  distinct(continent_name) %>% pull(continent_name)
+            reference_continent = final_df1() %>% filter(days_after_100 == max(days_after_100)) %>% arrange(desc(days_after_100)) %>% head(1) %>% pull("continent_name")
+            reference_country = final_df1() %>% filter(days_after_100 == max(days_after_100)) %>% arrange(desc(days_after_100)) %>% head(1) %>% pull("country")
+            list_continents_plot = final_df1() %>% ungroup() %>%  distinct(continent_name) %>% pull(continent_name)
             list_remaining_continents_plot = list_continents_plot[!list_continents_plot %in% reference_continent]
             
             if (!is_empty(list_remaining_continents_plot)) {
             
                 ann_position = 
-                    1:nrow(DF_plot %>% filter(continent_name %in% list_remaining_continents_plot) %>% ungroup() %>% distinct(continent_name)) %>%
+                    1:nrow(final_df1() %>% filter(continent_name %in% list_remaining_continents_plot) %>% ungroup() %>% distinct(continent_name)) %>%
                     map(~ max(
-                        DF_plot %>% 
+                        final_df1() %>% 
                             filter(continent_name == list_remaining_continents_plot[.x]) %>% 
                             pull(days_after_100))) %>% unlist()
                 
-                label_headstart = paste0("[", reference_country, " headstart]")
+                label_headstart = paste0("[", reference_country, "'s headstart]")
                 
             
             } else {
@@ -625,7 +637,7 @@ server <- function(input, output, session) {
             
             ann_text <-
                 data.frame(
-                    days_after_100 = (ann_position + max(DF_plot$days_after_100))/2, # 39 Italy, # 55 China
+                    days_after_100 = (ann_position + max(final_df1()$days_after_100))/2, # 39 Italy, # 55 China
                     value = 10,
                     lab = "text",
                     country = NA_character_,
@@ -639,13 +651,13 @@ server <- function(input, output, session) {
             
             # Define which countries get a smooth (have enough points)
             VALUE_span = 3
-            counts_filter = DF_plot %>% count(country) %>% filter(n > VALUE_span)
+            counts_filter = final_df1() %>% count(country) %>% filter(n > VALUE_span)
             
             
             
-            p_temp = ggplot(data = DF_plot, 
+            p_temp = ggplot(data = final_df1(), 
                             aes(x = days_after_100, y = value, group = as.factor(country), color = continent_name)) +
-                scale_color_hue(l = 50) +
+                # scale_color_hue(l = 50) +
                 
                 # Trend line
                 geom_line(data = growth_line(), aes(days_after_100, value), linetype = "dotted", inherit.aes = FALSE, alpha = 1, size = .9) +
@@ -669,7 +681,7 @@ server <- function(input, output, session) {
                 
                 geom_line(alpha = .4) +
                 
-                geom_smooth(data = DF_plot %>% filter(country %in% counts_filter$country), 
+                geom_smooth(data = final_df1() %>% filter(country %in% counts_filter$country), 
                             aes(x = days_after_100, y = value, group = as.factor(continent_name), color = continent_name),
                             method = "loess", span = 1.5, se = FALSE, size = 1, alpha = .9, na.rm = TRUE)
 
@@ -715,7 +727,10 @@ server <- function(input, output, session) {
                           inherit.aes = FALSE) +
                 geom_text(data = ann_text, label = label_headstart, size = 3, alpha = .8, color = "black") +    
                 facet_grid( ~ continent_name) +
-                theme(aspect.ratio = 1)
+                theme(aspect.ratio = 1) %>% 
+                scale_colour_manual(drop = TRUE,
+                                    limits = levels(final_df1()$continent_name), 
+                                    values = c('#cb4d42','#377eb8','#4daf4a','#984ea3','#ff7f00','#3B7080'))#c(brewer.pal(6,"Dark2")))
             
             p_final1
             
@@ -740,7 +755,7 @@ server <- function(input, output, session) {
             
             p_temp = ggplot(data = final_df2(), 
                             aes(x = value_temp, y = value, group = as.factor(country), color = continent_name)) +
-                scale_color_hue(l = 50) +
+                # scale_color_hue(l = 50) +
                 
                 # Trend line
                 geom_abline(intercept = -1, slope = 1, linetype = "dashed", alpha = .8, size = .5) +
@@ -791,8 +806,11 @@ server <- function(input, output, session) {
                 # Country label
                 ggrepel::geom_label_repel(aes(label = name_end), show.legend = FALSE, segment.color = "grey", segment.size  = .15, alpha = .75, size = 3) +
                 facet_grid( ~ continent_name) +
-                theme(aspect.ratio = 1)
-                
+                theme(aspect.ratio = 1) + 
+                scale_colour_manual(drop = TRUE,
+                                    limits = levels(final_df2()$continent_name), 
+                                    values = c('#cb4d42','#377eb8','#4daf4a','#984ea3','#ff7f00','#3B7080'))#c(brewer.pal(6,"Dark2")))
+            
             p_final
             
         })
@@ -825,6 +843,8 @@ server <- function(input, output, session) {
     # Show plot
     output$distPlot <- renderCachedPlot({
         
+        req(final_plot1())
+        req(final_plot2())
         req(final_plot12())
         
         withProgress(message = 'Show plot', value = 4, min = 0, max = 4, {
@@ -832,13 +852,13 @@ server <- function(input, output, session) {
         final_plot12()
             
         })
-    }, cacheKeyExpr = list(final_df2(), growth_line()))
+    }, cacheKeyExpr = list(final_df1(), final_df2(), final_plot1(), final_plot2(), final_plot12(), growth_line()))
     
 
     
     output$downloadPlot <- downloadHandler(
         filename = function() { paste(Sys.Date(), "_corona.png", sep = "") },
-        content = function(file) { ggsave(file, plot = final_plot12(), device = "png", width = 14, height = 10) }
+        content = function(file) { ggsave(file, plot = final_plot12(), device = "png", width = 16, height = 9) }
     )
 
 }

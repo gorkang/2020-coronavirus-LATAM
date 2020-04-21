@@ -3,16 +3,16 @@ data_download <- function(cases_deaths = "cases") {
   # Data preparation --------------------------------------------------------
 
   # Download worldometers
-  fetch_worldometers_safely()
-  
-  table_countries = read_csv(here::here("outputs/raw_data_worldometers.csv"), 
-           col_types = 
-               cols(
-                 country = col_character(),
-                 time = col_date(format = ""),
-                 cases_sum = col_double(),
-                 deaths_sum = col_double()
-               )) %>% as_tibble()
+  # fetch_worldometers_safely()
+  # 
+  # table_countries = read_csv(here::here("outputs/raw_data_worldometers.csv"), 
+  #          col_types = 
+  #              cols(
+  #                country = col_character(),
+  #                time = col_date(format = ""),
+  #                cases_sum = col_double(),
+  #                deaths_sum = col_double()
+  #              )) %>% as_tibble()
 
   
   # JHU API ------------------------------------------------------------------
@@ -83,8 +83,8 @@ data_download <- function(cases_deaths = "cases") {
     mutate(source = "JHU") %>% 
     
     # Join worldometers
-    bind_rows(table_countries %>% 
-                mutate(source = "worldometers")) %>%
+    # bind_rows(table_countries %>% 
+    #             mutate(source = "worldometers")) %>%
     
     # calculate new infections
     arrange(time) %>%
