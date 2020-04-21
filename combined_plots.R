@@ -1,9 +1,40 @@
-library(cowplot)
 options(Ncpus = parallel::detectCores() - 2)
 
-# set.seed(seed = 3)
-source("NOT_GITHUB/DEV/LATAM/LATAM_plot1.R")
-source("NOT_GITHUB/DEV/LATAM/LATAM_plot2.R")
+# Libraries ---------------------------------------------------------------
+
+library(cowplot)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(httr)
+library(purrr)
+library(readr)
+library(scales)
+# library(shiny)
+# library(shinyjs)
+# library(shinythemes)
+library(tidyr)
+library(vroom)
+
+
+
+# Data preparation --------------------------------------------------------
+
+cases_deaths = "deaths" #cases deaths
+
+source(here::here("R/download_or_load.R"))
+source(here::here("R/download_or_load_JH_API.R"))
+
+source(here::here("R/fetch_worldometers_safely.R"))
+source(here::here("R/data-download.R"))
+source(here::here("R/data-preparation.R"))
+
+data_download()
+
+
+
+source("R/LATAM_plot1.R")
+source("R/LATAM_plot2.R")
 
 
 # title = paste0("Coronavirus confirmed ", cases_deaths , if (relative == TRUE) " / million people"),
@@ -33,10 +64,10 @@ combined_plot =
     # labels = c("", "A)", "B)"),
     # rel_heights = c(0.1, 1, 1)
     
-    )
+  )
 
 combined_plot
-ggsave("NOT_GITHUB/DEV/LATAM/LATAM_combined_plot.png", combined_plot, width = 19.2, height = 10.8, dpi = 300)
+ggsave("outputs/plots/LATAM_combined_plot.png", combined_plot, width = 19.2, height = 10.8, dpi = 300)
 
-xxx = 1.2
-c(16 * xxx, 9 * xxx)
+# xxx = 1.2
+# c(16 * xxx, 9 * xxx)

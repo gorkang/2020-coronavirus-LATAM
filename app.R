@@ -19,12 +19,10 @@ library(vroom)
 
 # Data preparation --------------------------------------------------------
 
-cases_deaths = "deaths" #cases deaths
+cases_deaths = "deaths"
 
-source(here::here("R/download_or_load.R"))
 source(here::here("R/download_or_load_JH_API.R"))
 
-source(here::here("R/fetch_worldometers_safely.R"))
 source(here::here("R/data-download.R"))
 source(here::here("R/data-preparation.R"))
 
@@ -32,7 +30,7 @@ source(here::here("R/data-preparation-menu.R"))
 
 
 # Launch data_download 
-minutes_to_check_downloads = 30 # Every 12 minutes
+minutes_to_check_downloads = 30
 auto_invalide <- reactiveTimer(minutes_to_check_downloads * 60 * 1000) 
 
 file_info_JHU <- file.info("outputs/raw_JH.csv")$mtime
@@ -103,15 +101,6 @@ VAR_highlight = highlight
 
 
 
-
-# # Type
-# accumulated_daily_pct = "accumulated"
-# accumulated_daily_pct = "daily"
-# 
-# INPUT_accumulated_daily_pct = accumulated_daily_pct
-
-
-
 # UI ----------------------------------------------------------------------
 
 ui <- 
@@ -158,41 +147,7 @@ ui <-
                 width = "100%", 
                 selected = c(" ")),
     
-    # uiOutput('highlight2'),
-    
-    # selectInput(inputId = "cases_deaths", label = "Cases or deaths", selected = "deaths", 
-    #              choices = c("cases", "deaths", "CFR")),
-
-    # radioButtons(inputId = "accumulated_daily_pct", label = "Accumulated, daily or %", selected = "accumulated", 
-    #              choices = c("accumulated", "daily", "%"), inline = TRUE),
-    
-    # Dynamically change with cases_deaths
-    # sliderInput('min_n_cases', paste0("Day 0 after ___ accumulated cases"), min = 1, max = 1000, value = 100), 
-    # sliderInput('min_n_deaths', paste0("Day 0 after ___ accumulated deaths"), min = 1, max = 500, value = 10),
-    # sliderInput('min_n_CFR', paste0("Day 0 after ___ accumulated deaths"), min = 1, max = 500, value = 10),
-    
-    # Dynamically change with accumulated_daily_pct
-    # sliderInput("growth_accumulated", "Daily growth (%):", min = 0, max = 100, value = 30),
-    # sliderInput("growth_daily", "Daily growth (%):", min = 0, max = 100, value = 20),
-    # sliderInput("growth_pct", "Daily growth (%):", min = -50, max = 0, value = -10),
-    
     HTML("<BR>"),
-    
-    # div(style="display:inline-block;width;45%;text-align: center;",
-    #     shinyWidgets::switchInput(inputId = "log_scale", label = "Log", value = TRUE, size = "mini", labelWidth = "45%")
-    #     ), 
-    # HTML("&nbsp;&nbsp;"),
-    # div(style="display:inline-block;45%;text-align: center;",
-    #     shinyWidgets::switchInput(inputId = "smooth", label = "Smooth", value = FALSE, size = "mini", labelWidth = "45%")
-    #     ),
-    
-    # RELATIVE
-    # div(style="display:inline-block;45%;text-align: center;",
-    #     HTML("&nbsp;&nbsp;"),
-    #     
-    # shinyWidgets::switchInput(inputId = "relative", label = "Relative/million", value = FALSE, size = "mini", labelWidth = "80%")
-    # ),
-    # HTML("<BR><BR>"),
     
     div( HTML("&nbsp;&nbsp;"), style="display:inline-block;65%;text-align: center;",
         bookmarkButton(label = "URL")
@@ -211,19 +166,9 @@ ui <-
     p(HTML(
         paste0(
             a("Johns Hopkins Data", href="https://covid19api.com/", target = "_blank"), " updated on: ", as.character(file_info_JHU), " GMT"
-            # "<BR>", a("worldometers.info", href="https://www.worldometers.info/coronavirus/#countries", target = "_blank"), " (last point) updated on: ", as.POSIXct(time_worldometer, format = "%B %d, %Y, %H:%M", tz = "GMT"), "GMT"
         )
     )
     )
-    
-    # HTML(paste0("Using code and ideas from ",  
-    #         a("@JonMinton", href="https://github.com/JonMinton/COVID-19", target = "_blank"), ", ", 
-    #         a("@christoph_sax", href="https://gist.github.com/christophsax/dec0a57bcbc9d7517b852dd44eb8b20b", target = "_blank"), ", ",
-    #         a("@nicebread303", href="https://github.com/nicebread/corona", target = "_blank"), ", ",
-    #         a("@rubenivangaalen", href="https://twitter.com/rubenivangaalen", target = "_blank"), ", ",
-    #         a("@jburnmurdoch", href="https://twitter.com/jburnmurdoch", target = "_blank"), " and ", a(" @sdbernard", href="https://twitter.com/sdbernard", target = "_blank"))),
-    
-    
     ),
 
                 
@@ -231,17 +176,6 @@ ui <-
         mainPanel(
             
             plotOutput("distPlot", height = "900px", width = "120%"),
-            
-            # hr(),
-            # 
-            # h3("Data shown in plot ", downloadButton('downloadData', '')),
-            # 
-            # hr(),
-            # 
-            # div(
-            #     DT::dataTableOutput("mytable", width = "120%"), 
-            #     align = "center"
-            #     ),
             
             span(
                 div(
@@ -273,125 +207,38 @@ ui <-
 
 server <- function(input, output, session) {
 
-    setBookmarkExclude(
-        c('mytable_rows_current',
-          'mytable_rows_all',
-          'mytable_state',
-          'mytable_search_columns',
-          'mytable_search',
-          'mytable_cell_clicked',
-          'mytable_rows_selected'))
+    # setBookmarkExclude(
+    #     c('mytable_rows_current'))
     
-    
-    withProgress(message = 'Downloading data', value = 1, min = 0, max = 4, {
-        data_download()
-    })
     
     # WARNING -----------------------------------------------------------------
     output$WARNING <- renderUI({
-        # if (input$cases_deaths == "cases") {
-        #     span(h6("REMEMBER, number os cases is not a trusworthy measure: ", br(), br(), "Number of cases is not equivalent to infections. It is limited by number of tests, and most countries are not testing enough. ", br(), br(), "Number of cases are not directly comparable (countries employ different testing strategies)."),
-        #          style = "color:darkred")
-        # } else if (input$cases_deaths == "deaths") {
+
             span(h6("REMEMBER: ", br(), br(), "Countries count deaths in different ways (e.g. Some count deaths at hospitals but not at nursing homes and other count both)."),
                  style = "color:darkred")
-        # } else if (input$cases_deaths == "CFR") {
-        #     span(h6("REMEMBER: ", br(), br(), "Case Fatality Rate (CFR) = deaths / cases.", br(), br(), "Given the number of cases is not trustworthy (e.g. not enough tests), CFR is generally not a precise measure (usually an overestimation)."),
-        #          style = "color:darkred")
-        # }
-    })
+
+        })
 
     
     # Launch data downloading -------------------------------------------------
 
     observe({
+        
+        withProgress(message = 'Download or load data...', value = 1, min = 0, max = 5, {
+            
         auto_invalide()
         message("\n\n* CHECKING IF WE HAVE TO DOWNLOAD DATA ---------------------- \n")
         data_download()
-    })    
+        
+        })
+    })
     
     # Dynamic menus -----------------------------------------------------------
     
-    # observeEvent(input$cases_deaths,{
-    #     if (input$cases_deaths == "cases") {
-    #         hide("min_n_CFR")
-    #         hide("min_n_deaths")
-    #         show("min_n_cases")
-    #     } else if (input$cases_deaths == "deaths") {
-    #         hide("min_n_cases")
-    #         hide("min_n_CFR")
-    #         show("min_n_deaths")
-    #     } else if (input$cases_deaths == "CFR") {
-    #         hide("min_n_cases")
-    #         show("min_n_CFR")
-    #         hide("min_n_deaths")
-    #     }
-    # })
-    
-    # VAR_min_n = reactive({
-    #     if (input$cases_deaths == "cases") {
-    #         input$min_n_cases
-    #     } else if (input$cases_deaths == "deaths") {
-    #         input$min_n_deaths
-    #     } else if (input$cases_deaths == "CFR") {
-    #         input$min_n_CFR
-    #     }
-    # })
-    
-    
-    # observeEvent(input$accumulated_daily_pct,{
-    #     if (input$accumulated_daily_pct == "accumulated") {
-    #         hide("growth_daily")
-    #         hide("growth_pct")
-    #         show("growth_accumulated")
-    #     } else if (input$accumulated_daily_pct == "daily") {
-    #         hide("growth_accumulated")
-    #         hide("growth_pct")
-    #         show("growth_daily")
-    #     } else {
-    #         hide("growth_daily")
-    #         hide("growth_accumulated")
-    #         show("growth_pct")
-    #     }
-    # })
-
-    
-    # VAR_growth = reactive({
-    #     if (input$accumulated_daily_pct == "accumulated") {
-    #         input$growth_accumulated
-    #     } else if (input$accumulated_daily_pct == "daily") {
-    #         input$growth_daily
-    #     } else {
-    #         input$growth_pct
-    #     }
-    # })
-    
-    # VAR_highlight = reactive({
-    #     
-    #     if (is.null(input$highlight)) {
-    #         " "
-    #     } else {
-    #         input$highlight
-    #     }
-    # })
-
-    
-    # # Dinamically set highlight choices bases on input$countries_plot
-    # outVar = reactive({ c(" ", input$countries_plot %>% sort()) })
-    # output$highlight2 = renderUI({
-    #     selectInput(inputId = 'highlight', 
-    #                 label = 'Highlight countries',
-    #                 choices = outVar(),
-    #                 multiple = TRUE, 
-    #                 selectize = TRUE, 
-    #                 width = "100%", 
-    #                 selected = " ")
-    # })
-    
-    
-    
     INPUT_countries_plot = reactive({
 
+        withProgress(message = 'Preparing raw data', value = 1, min = 0, max = 5, {
+            
         # COUNTRIES
         dta_raw %>% 
             left_join(DF_population_countries %>% select(country, continent_name)) %>%
@@ -401,7 +248,7 @@ server <- function(input, output, session) {
             distinct(country) %>% 
             filter(! country %in% input$filter_countries) %>% 
             pull(country)
-        
+        })
     })
 
     
@@ -411,7 +258,9 @@ server <- function(input, output, session) {
 
     final_df1 = reactive({ 
         
-        withProgress(message = 'Preparing data 2', value = 2, min = 0, max = 4, {
+        req(INPUT_countries_plot())
+        
+        withProgress(message = 'Preparing data plot B', value = 2, min = 0, max = 5, {
             
             
             # Type
@@ -440,14 +289,7 @@ server <- function(input, output, session) {
                 
                 # re-adjust after filtering
                 group_by(country) %>%
-                mutate(days_after_100 = as.numeric(0:(length(country) - 1)),
-                       days_after_100 = 
-                           case_when(
-                               # source == "worldometers" ~ lag(days_after_100) + round(as.POSIXlt(as.POSIXct(time_worldometer, format = "%B %d, %Y, %H:%M", tz = "GMT"))$hour/24, 2), #.1
-                               source == "worldometers" ~ lag(days_after_100), #.1
-                               TRUE ~ days_after_100
-                           )) %>% 
-                
+                mutate(days_after_100 = as.numeric(0:(length(country) - 1))) %>% 
                 mutate(days_after_100 = round(days_after_100, 0)) %>% 
                 
                 group_by(country) %>%
@@ -461,9 +303,7 @@ server <- function(input, output, session) {
                 mutate(
                     name_end =
                         case_when(
-                            # days_after_100 == max(days_after_100, na.rm = TRUE) & time == max(time, na.rm = TRUE) ~ paste0(as.character(country), ": ", format(value, big.mark=","), " - ", days_after_100, " days"),
                             days_after_100 == max(days_after_100, na.rm = TRUE) & time == max(time, na.rm = TRUE) ~ paste0(as.character(country)),
-                            # what == "lockdown" ~ "*",
                             TRUE ~ "")) %>% 
                 mutate(highlight = country)
                 
@@ -471,32 +311,19 @@ server <- function(input, output, session) {
         })
     }) 
     
+    
     # final_df2() creation -----------------------------------------------------
     
     final_df2 = reactive({ 
 
-        withProgress(message = 'Preparing data 2', value = 2, min = 0, max = 4, {
+        req(INPUT_countries_plot())
+        
+        withProgress(message = 'Preparing data plot B', value = 2, min = 0, max = 5, {
             
             accumulated_daily_pct = "daily"
             INPUT_accumulated_daily_pct = accumulated_daily_pct
             
             INPUT_min_n = 1
-            
-            # req(input$highlight)
-            # req(VAR_highlight())
-            # req(INPUT_min_n)
-            # req(input$cases_deaths)
-            # req(input$countries_plot)
-            
-            # VARS
-            # INPUT_highlight = VAR_highlight()
-            # INPUT_min_n = INPUT_min_n
-            # INPUT_cases_deaths = input$cases_deaths
-            # INPUT_countries_plot = input$countries_plot
-            # INPUT_relative = input$relative
-            # INPUT_accumulated_daily_pct = input$accumulated_daily_pct
-            
-            # message("INPUT_highlight = ", INPUT_highlight, "\nINPUT_min_n = ", INPUT_min_n, "\nINPUT_cases_deaths = ", INPUT_cases_deaths, "\nINPUT_countries_plot = ", INPUT_countries_plot, "\nINPUT_relative = ", INPUT_relative, "\nINPUT_accumulated_daily_pct = ", INPUT_accumulated_daily_pct, "\n")
             
             # Launch data preparation
 
@@ -518,14 +345,7 @@ server <- function(input, output, session) {
                     
                     # re-adjust after filtering
                     group_by(country) %>%
-                    mutate(days_after_100 = as.numeric(0:(length(country) - 1)),
-                           days_after_100 = 
-                               case_when(
-                                   # source == "worldometers" ~ lag(days_after_100) + round(as.POSIXlt(as.POSIXct(time_worldometer, format = "%B %d, %Y, %H:%M", tz = "GMT"))$hour/24, 2), #.1
-                                   source == "worldometers" ~ lag(days_after_100), #.1
-                                   TRUE ~ days_after_100
-                               )) %>% 
-                    
+                    mutate(days_after_100 = as.numeric(0:(length(country) - 1))) %>% 
                     mutate(days_after_100 = round(days_after_100, 0)) %>% 
                     
                     group_by(country) %>%
@@ -538,12 +358,10 @@ server <- function(input, output, session) {
                     mutate(
                         name_end =
                             case_when(
-                                # days_after_100 == max(days_after_100, na.rm = TRUE) & time == max(time, na.rm = TRUE) ~ paste0(as.character(country), ": ", format(value, big.mark=","), " - ", days_after_100, " days"),
                                 days_after_100 == max(days_after_100, na.rm = TRUE) & time == max(time, na.rm = TRUE) ~ paste0(as.character(country)),
-                                # what == "lockdown" ~ "*",
                                 TRUE ~ ""))
                 
-                # browser()
+
                 dta_temp %>% 
                     
                     rename(value_temp = value,
@@ -553,7 +371,7 @@ server <- function(input, output, session) {
                     group_by(country) %>% 
                     
                     # Rolling mean of last 7 days --------------
-                mutate(value = map_dbl(1:n(), ~ mean(value[(max(.x - 7, 1)):.x], na.rm = FALSE))) %>%
+                    mutate(value = map_dbl(1:n(), ~ mean(value[(max(.x - 7, 1)):.x], na.rm = FALSE))) %>%
                     filter(value_temp >= 10)
                 
                 
@@ -566,38 +384,32 @@ server <- function(input, output, session) {
     # Growth line ---------------
     growth_line = reactive({
 
-        withProgress(message = 'Growth line', value = 2, min = 0, max = 4, {
+        req(final_df1())
+        
+        withProgress(message = 'Growth line', value = 2, min = 0, max = 5, {
             
             INPUT_min_n = 10
         
-        # LIMITS of DATA
-        # if (INPUT_accumulated_daily_pct == "daily") {
-        #     MAX_y = max(final_df2()$diff, na.rm = TRUE) * 1.1
-        # # } else if (input$accumulated_daily_pct == "%") {
-        # #     MAX_y = max(final_df2()$diff_pct, na.rm = TRUE) * 100
-        # } else {
             MAX_y = max(final_df1()$value, na.rm = TRUE) * 1.1
-        # }
         
-        # To avoid error
-        if (is.infinite(max(final_df1()$days_after_100, na.rm = TRUE))) {
-            max_finaldf_days_after_100 = 10 
-        } else {
-            max_finaldf_days_after_100 = max(final_df1()$days_after_100, na.rm = TRUE)
-        }
-        
-        line_factor = 1
-            tibble(
-                value = cumprod(c(INPUT_min_n, rep((100 + INPUT_growth) / 100, line_factor * max_finaldf_days_after_100))),
-                days_after_100 = 0:(line_factor * max_finaldf_days_after_100)) %>% 
-                filter(value <= MAX_y)
+            # To avoid error
+            if (is.infinite(max(final_df1()$days_after_100, na.rm = TRUE))) {
+                max_finaldf_days_after_100 = 10 
+            } else {
+                max_finaldf_days_after_100 = max(final_df1()$days_after_100, na.rm = TRUE)
+            }
+            
+            line_factor = 1
+                tibble(
+                    value = cumprod(c(INPUT_min_n, rep((100 + INPUT_growth) / 100, line_factor * max_finaldf_days_after_100))),
+                    days_after_100 = 0:(line_factor * max_finaldf_days_after_100)) %>% 
+                    filter(value <= MAX_y)
     
         })    
     })
     
     
 
-    
 
     # final_plot1() -----------------------------------------------------------
 
@@ -605,9 +417,7 @@ server <- function(input, output, session) {
         
         req(final_df1())
         
-        withProgress(message = 'Preparing plot 1', value = 3, min = 0, max = 4, {
-            
-            # DF_plot = final_df1() %>% ungroup()
+        withProgress(message = 'Preparing plot A', value = 3, min = 0, max = 5, {
             
             # Prepare vars for overlay
             reference_continent = final_df1() %>% filter(days_after_100 == max(days_after_100)) %>% arrange(desc(days_after_100)) %>% head(1) %>% pull("continent_name")
@@ -746,7 +556,7 @@ server <- function(input, output, session) {
 
         req(final_df2())
         
-        withProgress(message = 'Preparing plot 2', value = 3, min = 0, max = 4, {
+        withProgress(message = 'Preparing plot B', value = 3, min = 0, max = 5, {
 
             # Define which countries get a smooth (have enough points)
             VALUE_span = 3
@@ -797,9 +607,6 @@ server <- function(input, output, session) {
                 scale_y_log10(breaks = scales::log_breaks(n = 10), labels = function(x) format(x, big.mark = ",", scientific = FALSE), limits = c(MIN_y, MAX_y)) 
                 labs(y = paste0("Confirmed ", "daily", " ", cases_deaths))
 
-        
-            # x_axis = max(growth_line()$value_temp, na.rm = TRUE) - 1.5
-            # y_axis = max(growth_line()$value, na.rm = TRUE) + 1 # MAX 
 
             p_final <- p_temp + 
                 
@@ -822,7 +629,7 @@ server <- function(input, output, session) {
         req(final_plot1())
         req(final_plot2())
         
-        withProgress(message = 'Rendering plot', value = 4, min = 0, max = 4, {
+        withProgress(message = 'Rendering plot', value = 4, min = 0, max = 5, {
             
             cowplot::plot_grid(
                 # title,
@@ -843,15 +650,16 @@ server <- function(input, output, session) {
     # Show plot
     output$distPlot <- renderCachedPlot({
         
+        withProgress(message = 'Show plot', value = 5, min = 0, max = 5, {
+            
         req(final_plot1())
         req(final_plot2())
         req(final_plot12())
         
-        withProgress(message = 'Show plot', value = 4, min = 0, max = 4, {
-            
         final_plot12()
             
         })
+        
     }, cacheKeyExpr = list(final_df1(), final_df2(), final_plot1(), final_plot2(), final_plot12(), growth_line()))
     
 
@@ -864,4 +672,4 @@ server <- function(input, output, session) {
 }
 
 # Run the application 
-shinyApp(ui = ui, server = server, enableBookmarking = "url") #, options = "test.mode"
+shinyApp(ui = ui, server = server, enableBookmarking = "url")
