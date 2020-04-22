@@ -99,6 +99,7 @@ highlight = " "
 INPUT_highlight = highlight
 VAR_highlight = highlight
 
+INITIAL_continents = c("Asia", "Europe", "North America", "Latin America")
 
 
 # UI ----------------------------------------------------------------------
@@ -138,10 +139,23 @@ ui <-
                 choices = c("Asia", "Europe", "Africa", "North America", "Latin America", "Oceania"), multiple = TRUE,
                 selectize = TRUE,
                 width = "100%",
-                selected = c("Asia", "Europe", "North America", "Latin America")),
+                selected = INITIAL_continents),
 
-    # Dynamically change with continent_name_input
-    uiOutput('filter_countries2'),
+    selectInput(inputId = 'filter_countries',
+                label = 'Filter out countries',
+                choices = dta_raw %>%
+                    left_join(DF_population_countries %>% select(country, continent_name)) %>%
+                    filter(continent_name %in% INITIAL_continents) %>%
+                    drop_na(continent_name) %>%
+                    filter(deaths_sum > 1) %>%
+                    arrange(continent_name, desc(deaths_sum)) %>% 
+                    distinct(country) %>%
+                    # filter(! country %in% input$filter_countries) %>%
+                    pull(country),
+                multiple = TRUE,
+                selectize = TRUE,
+                width = "100%",
+                selected = c(" ")),
     
 
     HTML("<BR>"),
@@ -233,59 +247,33 @@ server <- function(input, output, session) {
         })
     })
 
+    
     # Dynamic menus -----------------------------------------------------------
 
-    # Dinamically set highlight choices bases on input$countries_plot
-    outVar = reactive({ 
-        # browser()
-        dta_raw %>%
-            filter(!country %in% c("Total:", "Diamond Princess")) %>% 
-            arrange(desc(cases_sum)) %>% 
-            distinct(country) %>% 
-            left_join(DF_population_countries %>% select(-population)) %>% 
-            arrange(continent_name) %>% 
-            filter(continent_name %in% input$continent_name_input) %>% 
-            pull(country)
+    observe({
+        
+        # Is set of continents NOT the initial one
+        if (input$continent_name_input != INITIAL_continents)
+            updateSelectInput(session, "filter_countries", 
+                              choices = c(" ", myReactives$INPUT_countries_plot))
         
         })
     
-    output$filter_countries2 = renderUI({
-        
-    selectInput(inputId = 'filter_countries',
-                label = 'Filter out countries',
-                choices = c(" ", outVar()), 
-                multiple = TRUE,
-                selectize = TRUE,
-                width = "100%",
-                selected = c(" "))
-    
-    # output$highlight2 = renderUI({
-    #     selectInput(inputId = 'highlight', 
-    #                 label = 'Highlight countries',
-    #                 choices = outVar(),
-    #                 multiple = TRUE, 
-    #                 selectize = TRUE, 
-    #                 width = "100%", 
-    #                 selected = " ")
-    })
-    
-    
-    INPUT_countries_plot = reactive({
-
-        withProgress(message = 'Preparing raw data', value = 1, min = 0, max = 5, {
-
-        # COUNTRIES
-        dta_raw %>%
+    myReactives <- reactiveValues()  
+    observe(
+        myReactives$INPUT_countries_plot <-  
+            
+            dta_raw %>%
             left_join(DF_population_countries %>% select(country, continent_name)) %>%
             filter(continent_name %in% input$continent_name_input) %>%
             drop_na(continent_name) %>%
             filter(deaths_sum > 1) %>%
+            arrange(continent_name, desc(deaths_sum)) %>% 
             distinct(country) %>%
             filter(! country %in% input$filter_countries) %>%
             pull(country)
-        })
-    })
-
+        )
+    
 
 
 
@@ -293,7 +281,7 @@ server <- function(input, output, session) {
 
     final_df1 = reactive({
 
-        req(INPUT_countries_plot())
+        req(myReactives$INPUT_countries_plot)
 
         withProgress(message = 'Preparing data plot B', value = 2, min = 0, max = 5, {
 
@@ -306,12 +294,12 @@ server <- function(input, output, session) {
 
 
             # Launch data preparation
-            if (!is.null(INPUT_countries_plot())) {
+            if (!is.null(myReactives$INPUT_countries_plot)) {
 
                 dta_temp = data_preparation(
                     data_source = "JHU",
                     cases_deaths = INPUT_cases_deaths,
-                    countries_plot = INPUT_countries_plot(),
+                    countries_plot = myReactives$INPUT_countries_plot,
                     min_n = INPUT_min_n,
                     relative = INPUT_relative
                 )  %>%
@@ -351,7 +339,7 @@ server <- function(input, output, session) {
 
     final_df2 = reactive({
 
-        req(INPUT_countries_plot())
+        req(myReactives$INPUT_countries_plot)
 
         withProgress(message = 'Preparing data plot B', value = 2, min = 0, max = 5, {
 
@@ -361,12 +349,12 @@ server <- function(input, output, session) {
             INPUT_min_n = 1
 
             # Launch data preparation
-            if (!is.null(INPUT_countries_plot())) {
+            if (!is.null(myReactives$INPUT_countries_plot)) {
 
                 dta_temp = data_preparation(
                     data_source = "JHU",
                     cases_deaths = INPUT_cases_deaths,
-                    countries_plot = INPUT_countries_plot(),
+                    countries_plot = myReactives$INPUT_countries_plot,
                     min_n = INPUT_min_n,
                     relative = INPUT_relative
                 )  %>%
