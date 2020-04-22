@@ -150,7 +150,7 @@ ui <-
                     filter(deaths_sum > 1) %>%
                     arrange(continent_name, desc(deaths_sum)) %>% 
                     distinct(country) %>%
-                    # filter(! country %in% input$filter_countries) %>%
+                    # filter(! country %in% INPUT_filter_countries_debounced()) %>%
                     pull(country),
                 multiple = TRUE,
                 selectize = TRUE,
@@ -248,12 +248,22 @@ server <- function(input, output, session) {
     })
 
     
+    # Debounce critical vars --------------------------------------------------
+    
+    INPUT_continent_name_input = reactive({ input$continent_name_input })
+    INPUT_continent_name_input_debounced <- debounce(INPUT_continent_name_input, 500)
+    
+    INPUT_filter_countries = reactive({ input$filter_countries })
+    INPUT_filter_countries_debounced <- debounce(INPUT_filter_countries, 500)
+    
+    
+    
     # Dynamic menus -----------------------------------------------------------
 
     observe({
         
-        # Is set of continents NOT the initial one
-        if (input$continent_name_input != INITIAL_continents)
+        # If set of continents NOT the initial one
+        if (INPUT_continent_name_input_debounced() != INITIAL_continents)
             updateSelectInput(session, "filter_countries", 
                               choices = c(" ", myReactives$INPUT_countries_plot))
         
@@ -265,12 +275,12 @@ server <- function(input, output, session) {
             
             dta_raw %>%
             left_join(DF_population_countries %>% select(country, continent_name)) %>%
-            filter(continent_name %in% input$continent_name_input) %>%
+            filter(continent_name %in% INPUT_continent_name_input_debounced()) %>%
             drop_na(continent_name) %>%
             filter(deaths_sum > 1) %>%
             arrange(continent_name, desc(deaths_sum)) %>% 
             distinct(country) %>%
-            filter(! country %in% input$filter_countries) %>%
+            filter(! country %in% INPUT_filter_countries_debounced()) %>%
             pull(country)
         )
     
