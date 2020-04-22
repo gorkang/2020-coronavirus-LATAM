@@ -140,12 +140,9 @@ ui <-
                 width = "100%",
                 selected = c("Asia", "Europe", "North America", "Latin America")),
 
-    selectInput(inputId = 'filter_countries',
-                label = 'Filter out countries',
-                choices = c(" ", V1_alternatives), multiple = TRUE,
-                selectize = TRUE,
-                width = "100%",
-                selected = c(" ")),
+    # Dynamically change with continent_name_input
+    uiOutput('filter_countries2'),
+    
 
     HTML("<BR>"),
 
@@ -238,6 +235,41 @@ server <- function(input, output, session) {
 
     # Dynamic menus -----------------------------------------------------------
 
+    # Dinamically set highlight choices bases on input$countries_plot
+    outVar = reactive({ 
+        # browser()
+        dta_raw %>%
+            filter(!country %in% c("Total:", "Diamond Princess")) %>% 
+            arrange(desc(cases_sum)) %>% 
+            distinct(country) %>% 
+            left_join(DF_population_countries %>% select(-population)) %>% 
+            arrange(continent_name) %>% 
+            filter(continent_name %in% input$continent_name_input) %>% 
+            pull(country)
+        
+        })
+    
+    output$filter_countries2 = renderUI({
+        
+    selectInput(inputId = 'filter_countries',
+                label = 'Filter out countries',
+                choices = c(" ", outVar()), 
+                multiple = TRUE,
+                selectize = TRUE,
+                width = "100%",
+                selected = c(" "))
+    
+    # output$highlight2 = renderUI({
+    #     selectInput(inputId = 'highlight', 
+    #                 label = 'Highlight countries',
+    #                 choices = outVar(),
+    #                 multiple = TRUE, 
+    #                 selectize = TRUE, 
+    #                 width = "100%", 
+    #                 selected = " ")
+    })
+    
+    
     INPUT_countries_plot = reactive({
 
         withProgress(message = 'Preparing raw data', value = 1, min = 0, max = 5, {
@@ -329,7 +361,6 @@ server <- function(input, output, session) {
             INPUT_min_n = 1
 
             # Launch data preparation
-
             if (!is.null(INPUT_countries_plot())) {
 
                 dta_temp = data_preparation(
@@ -364,7 +395,6 @@ server <- function(input, output, session) {
                                 days_after_100 == max(days_after_100, na.rm = TRUE) & time == max(time, na.rm = TRUE) ~ paste0(as.character(country)),
                                 TRUE ~ ""))
 
-
                 dta_temp %>%
 
                     rename(value_temp = value,
@@ -374,10 +404,17 @@ server <- function(input, output, session) {
                     group_by(country) %>%
 
                     # Rolling mean of last 7 days --------------
-                    mutate(value = map_dbl(1:n(), ~ mean(value[(max(.x - 7, 1)):.x], na.rm = FALSE))) %>%
+                    mutate(value = map_dbl(1:n(), ~ 
+                                               round(mean(value[(max(.x - 7, 1)):.x], na.rm = FALSE), 0) # Round to avoid values < 1
+                                           )) %>%
+                    
+                    # GET RID of 0's (don't work in log scale) [WILL CAUSE PROBLEMS LATTER?]
+                    mutate(value = 
+                               case_when(
+                                   value == 0 ~ NA_real_,
+                                   TRUE ~ value
+                               )) %>% 
                     filter(value_temp >= 10)
-
-
 
 
             }
