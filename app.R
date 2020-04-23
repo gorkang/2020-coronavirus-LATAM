@@ -15,6 +15,7 @@ library(shinythemes)
 library(tidyr)
 library(vroom)
 
+# options(shiny.reactlog = TRUE) 
 
 
 # Data preparation --------------------------------------------------------
@@ -134,28 +135,20 @@ ui <-
             align = "center"
             ),
 
-    selectInput(inputId = 'continent_name_input',
+    selectInput(inputId = 'continent_name',
                 label = 'Continents',
-                choices = c("Asia", "Europe", "Africa", "North America", "Latin America", "Oceania"), multiple = TRUE,
+                choices = c("Asia", "Europe", "Africa", "North America", "Latin America", "Oceania"), 
+                multiple = TRUE,
                 selectize = TRUE,
                 width = "100%",
                 selected = INITIAL_continents),
 
     selectInput(inputId = 'filter_countries',
                 label = 'Filter out countries',
-                choices = dta_raw %>%
-                    left_join(DF_population_countries %>% select(country, continent_name)) %>%
-                    filter(continent_name %in% INITIAL_continents) %>%
-                    drop_na(continent_name) %>%
-                    filter(deaths_sum > 1) %>%
-                    arrange(continent_name, desc(deaths_sum)) %>% 
-                    distinct(country) %>%
-                    # filter(! country %in% INPUT_filter_countries_debounced()) %>%
-                    pull(country),
+                choices = c(V1_alternatives),
                 multiple = TRUE,
                 selectize = TRUE,
-                width = "100%",
-                selected = c(" ")),
+                width = "100%"),
     
 
     HTML("<BR>"),
@@ -246,54 +239,62 @@ server <- function(input, output, session) {
 
         })
     })
+ 
 
-    
-    # Debounce critical vars --------------------------------------------------
-    
-    INPUT_continent_name_input = reactive({ input$continent_name_input })
-    INPUT_continent_name_input_debounced <- debounce(INPUT_continent_name_input, 500)
-    
-    INPUT_filter_countries = reactive({ input$filter_countries })
-    INPUT_filter_countries_debounced <- debounce(INPUT_filter_countries, 500)
-    
-    
-    
-    # Dynamic menus -----------------------------------------------------------
 
-    observe({
-        
-        # If set of continents NOT the initial one
-        if (INPUT_continent_name_input_debounced() != INITIAL_continents)
-            updateSelectInput(session, "filter_countries", 
-                              choices = c(" ", myReactives$INPUT_countries_plot))
+  # Reactive countries ------------------------------------------------------
+    
+    reactive_countries = reactive({ 
+       
+            list_countries = dta_raw %>%
+                left_join(DF_population_countries %>% select(country, continent_name), by = "country") %>%
+                filter(continent_name %in% input$continent_name) %>%
+                drop_na(continent_name) %>%
+                filter(deaths_sum > 1) %>%
+                arrange(continent_name, desc(deaths_sum)) %>% 
+                distinct(country) %>%
+                filter(! country %in% input$filter_countries) %>%
+                pull(country) 
+            
+            
+            data_preparation(
+                data_source = "JHU",
+                cases_deaths = INPUT_cases_deaths,
+                countries_plot = list_countries,
+                min_n = INPUT_min_n,
+                relative = INPUT_relative
+            ) 
         
         })
     
-    myReactives <- reactiveValues()  
-    observe(
-        myReactives$INPUT_countries_plot <-  
-            
-            dta_raw %>%
-            left_join(DF_population_countries %>% select(country, continent_name)) %>%
-            filter(continent_name %in% INPUT_continent_name_input_debounced()) %>%
-            drop_na(continent_name) %>%
-            filter(deaths_sum > 1) %>%
-            arrange(continent_name, desc(deaths_sum)) %>% 
-            distinct(country) %>%
-            filter(! country %in% INPUT_filter_countries_debounced()) %>%
-            pull(country)
-        )
+    
+    # Debounce critical vars --------------------------------------------------
+    
+    reactive_countries_debounced <- debounce(reactive_countries, 500)
+    
     
 
+    # Dynamic menus -----------------------------------------------------------
+    
+    observeEvent(
+      list(input$continent_name), {
+            
+                updateSelectInput(session, "filter_countries", 
+                                  choices = reactive_countries() %>%
+                                    arrange(continent_name, country) %>% 
+                                    distinct(country))
+            
+        })
 
-
+    
+    
 # final_df1() creation ------------------------------------------------------
 
     final_df1 = reactive({
-
-        req(myReactives$INPUT_countries_plot)
-
-        withProgress(message = 'Preparing data plot B', value = 2, min = 0, max = 5, {
+        
+        req(reactive_countries_debounced())
+        
+        withProgress(message = 'Preparing data plot A', value = 2, min = 0, max = 5, {
 
 
             # Type
@@ -304,41 +305,38 @@ server <- function(input, output, session) {
 
 
             # Launch data preparation
-            if (!is.null(myReactives$INPUT_countries_plot)) {
+            if (!is.null(reactive_countries_debounced())) {
 
-                dta_temp = data_preparation(
-                    data_source = "JHU",
-                    cases_deaths = INPUT_cases_deaths,
-                    countries_plot = myReactives$INPUT_countries_plot,
-                    min_n = INPUT_min_n,
-                    relative = INPUT_relative
-                )  %>%
+                    
+                dta_temp = reactive_countries_debounced() %>% 
+                  
+                  filter(value >= INPUT_min_n) %>% 
 
-                # If repeated values the same day, keep higher
-                group_by(country, time) %>%
-                distinct(KEY = paste0(country, time, value), .keep_all = TRUE) %>%
-                select(-KEY) %>%
-                ungroup() %>%
-
-                # re-adjust after filtering
-                group_by(country) %>%
-                mutate(days_after_100 = as.numeric(0:(length(country) - 1))) %>%
-                mutate(days_after_100 = round(days_after_100, 0)) %>%
-
-                group_by(country) %>%
-
-                # Get rid of the latest data if it either 0 or negative
-                filter( !(days_after_100 == max(days_after_100, na.rm = TRUE) & diff <= 0)) %>%
-                filter(source == "JHU") %>%
-
-
-                # Create name_end labels
-                mutate(
-                    name_end =
-                        case_when(
-                            days_after_100 == max(days_after_100, na.rm = TRUE) & time == max(time, na.rm = TRUE) ~ paste0(as.character(country)),
-                            TRUE ~ "")) %>%
-                mutate(highlight = country)
+                  # If repeated values the same day, keep higher
+                  group_by(country, time) %>%
+                  distinct(KEY = paste0(country, time, value), .keep_all = TRUE) %>%
+                  select(-KEY) %>%
+                  ungroup() %>%
+  
+                  # re-adjust after filtering
+                  group_by(country) %>%
+                  mutate(days_after_100 = as.numeric(0:(length(country) - 1))) %>%
+                  mutate(days_after_100 = round(days_after_100, 0)) %>%
+  
+                  group_by(country) %>%
+  
+                  # Get rid of the latest data if it either 0 or negative
+                  filter( !(days_after_100 == max(days_after_100, na.rm = TRUE) & diff <= 0)) %>%
+                  filter(source == "JHU") %>%
+  
+  
+                  # Create name_end labels
+                  mutate(
+                      name_end =
+                          case_when(
+                              days_after_100 == max(days_after_100, na.rm = TRUE) & time == max(time, na.rm = TRUE) ~ paste0(as.character(country)),
+                              TRUE ~ "")) %>%
+                  mutate(highlight = country)
 
             }
         })
@@ -349,8 +347,8 @@ server <- function(input, output, session) {
 
     final_df2 = reactive({
 
-        req(myReactives$INPUT_countries_plot)
-
+        req(reactive_countries_debounced())
+        
         withProgress(message = 'Preparing data plot B', value = 2, min = 0, max = 5, {
 
             accumulated_daily_pct = "daily"
@@ -359,39 +357,35 @@ server <- function(input, output, session) {
             INPUT_min_n = 1
 
             # Launch data preparation
-            if (!is.null(myReactives$INPUT_countries_plot)) {
+            if (!is.null(reactive_countries_debounced())) {
 
-                dta_temp = data_preparation(
-                    data_source = "JHU",
-                    cases_deaths = INPUT_cases_deaths,
-                    countries_plot = myReactives$INPUT_countries_plot,
-                    min_n = INPUT_min_n,
-                    relative = INPUT_relative
-                )  %>%
+                dta_temp = reactive_countries_debounced() %>% 
+                  
+                  filter(value >= INPUT_min_n) %>% 
+                  
+                  # If repeated values the same day, keep higher
+                  group_by(country, time) %>%
+                  distinct(KEY = paste0(country, time, value), .keep_all = TRUE) %>%
+                  select(-KEY) %>%
+                  ungroup() %>%
 
-                    # If repeated values the same day, keep higher
-                    group_by(country, time) %>%
-                    distinct(KEY = paste0(country, time, value), .keep_all = TRUE) %>%
-                    select(-KEY) %>%
-                    ungroup() %>%
+                  # re-adjust after filtering
+                  group_by(country) %>%
+                  mutate(days_after_100 = as.numeric(0:(length(country) - 1))) %>%
+                  mutate(days_after_100 = round(days_after_100, 0)) %>%
 
-                    # re-adjust after filtering
-                    group_by(country) %>%
-                    mutate(days_after_100 = as.numeric(0:(length(country) - 1))) %>%
-                    mutate(days_after_100 = round(days_after_100, 0)) %>%
+                  group_by(country) %>%
 
-                    group_by(country) %>%
+                  # Get rid of the latest data if it either 0 or negative
+                  filter( !(days_after_100 == max(days_after_100, na.rm = TRUE) & diff <= 0)) %>%
+                  filter(source == "JHU") %>%
 
-                    # Get rid of the latest data if it either 0 or negative
-                    filter( !(days_after_100 == max(days_after_100, na.rm = TRUE) & diff <= 0)) %>%
-                    filter(source == "JHU") %>%
-
-                    # Create name_end labels
-                    mutate(
-                        name_end =
-                            case_when(
-                                days_after_100 == max(days_after_100, na.rm = TRUE) & time == max(time, na.rm = TRUE) ~ paste0(as.character(country)),
-                                TRUE ~ ""))
+                  # Create name_end labels
+                  mutate(
+                      name_end =
+                          case_when(
+                              days_after_100 == max(days_after_100, na.rm = TRUE) & time == max(time, na.rm = TRUE) ~ paste0(as.character(country)),
+                              TRUE ~ ""))
 
                 dta_temp %>%
 
@@ -414,12 +408,11 @@ server <- function(input, output, session) {
                                )) %>% 
                     filter(value_temp >= 10)
 
-
             }
         })
     })
 
-    # Growth line ---------------
+    # growth_line() ---------------
     growth_line = reactive({
 
         req(final_df1())
@@ -454,7 +447,7 @@ server <- function(input, output, session) {
     final_plot1 <- reactive({
 
         req(final_df1())
-
+        
         withProgress(message = 'Preparing plot A', value = 3, min = 0, max = 5, {
 
             # Prepare vars for overlay
@@ -587,7 +580,7 @@ server <- function(input, output, session) {
     final_plot2 <- reactive({
 
         req(final_df2())
-
+        
         withProgress(message = 'Preparing plot B', value = 3, min = 0, max = 5, {
 
             # Define which countries get a smooth (have enough points)
@@ -652,25 +645,27 @@ server <- function(input, output, session) {
     })
 
 
+
+    # final_plot12() ----------------------------------------------------------
+
     final_plot12 <- reactive({
 
         req(final_plot1())
         req(final_plot2())
-
+        
         withProgress(message = 'Rendering plot', value = 4, min = 0, max = 5, {
 
-            cowplot::plot_grid(
-                # title,
-                final_plot1(),
-                final_plot2(),
-                nrow = 2,
-                # labels = c("A)", "B)"),
-                rel_heights = c(1, 1)
-                # nrow = 3,
-                # labels = c("", "A)", "B)"),
-                # rel_heights = c(0.1, 1, 1)
-
-            )
+            suppressMessages(
+              suppressWarnings(
+                
+                cowplot::plot_grid(
+                    final_plot1(),
+                    final_plot2(),
+                    nrow = 2,
+                    rel_heights = c(1, 1)
+                    )
+                )
+              )
 
         })
     })
@@ -678,17 +673,15 @@ server <- function(input, output, session) {
     # Show plot
     output$distPlot <- renderCachedPlot({
 
+        req(final_plot12())
+        
         withProgress(message = 'Show plot', value = 5, min = 0, max = 5, {
 
-        req(final_plot1())
-        req(final_plot2())
-        req(final_plot12())
-
-        final_plot12()
+                final_plot12()
 
         })
 
-    }, cacheKeyExpr = list(final_df1(), final_df2(), final_plot1(), final_plot2(), final_plot12(), growth_line()))
+    }, cacheKeyExpr = list(final_plot12()))
 
 
 

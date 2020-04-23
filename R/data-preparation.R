@@ -129,7 +129,7 @@ dta <-
           TRUE ~ "")) %>% 
     select(country, time, value, diff, everything()) %>% 
   
-  left_join(DF_population_countries %>% select(country, continent_name))
+  left_join(DF_population_countries %>% select(country, continent_name), by = "country")
 dta
 
   }

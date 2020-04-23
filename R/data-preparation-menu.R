@@ -44,14 +44,10 @@ DF_population_countries = read_csv("data/population_countries.csv",
   filter(!country %in% c("Total:", "Diamond Princess")) %>% 
   arrange(desc(cases_sum)) %>% 
   distinct(country) %>% 
-  left_join(DF_population_countries %>% select(-population)) %>% 
-  arrange(continent_name) %>% 
+  left_join(DF_population_countries %>% select(-population), by = "country") %>% 
+  ungroup() %>% 
+  arrange(continent_name, country) %>% 
   filter(continent_name %in% c("Asia", "Europe", "North America", "Latin America"))
 
  V1_alternatives <<- DF_menu %>% 
   pull(country)
-
-# top_countries <<- DF_menu %>% 
-#   filter(!country %in% c("Total:", "Cruise Ship", "China", "Diamond Princess")) %>% 
-#   slice_head(n = 6, wt = value) %>% 
-#   pull(country)
