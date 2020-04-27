@@ -19,7 +19,7 @@ dta_raw = read_csv(here::here("outputs/raw_data.csv"),
            ))
 
 
-DF_population_countries = read_csv("data/population_countries.csv",
+DF_population_countries = read_csv(here::here("data/population_countries.csv"),
                                    col_types =
                                      cols(
                                        country = col_character(),
@@ -115,13 +115,7 @@ dta_temp = data_preparation(
   
   # re-adjust after filtering
   group_by(country) %>%
-  mutate(days_after_100 = as.numeric(0:(length(country) - 1)),
-         days_after_100 = 
-           case_when(
-             # source == "worldometers" ~ lag(days_after_100) + round(as.POSIXlt(as.POSIXct(time_worldometer, format = "%B %d, %Y, %H:%M", tz = "GMT"))$hour/24, 2), #.1
-             source == "worldometers" ~ lag(days_after_100), #.1
-             TRUE ~ days_after_100
-           )) %>% 
+  mutate(days_after_100 = as.numeric(0:(length(country) - 1))) %>% 
   
   mutate(days_after_100 = round(days_after_100, 0)) %>% 
   
