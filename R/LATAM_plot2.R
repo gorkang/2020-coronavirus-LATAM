@@ -288,33 +288,33 @@ if (any(' ' != VAR_highlight)) {
         
 
       
-DF_pallette_final = 1:nrow(DF_color_palletes %>% count(continent_name)) %>% 
-  
-  map( ~
-    
-    colorscale::create_single_scale(
-      color = c("#1D9A6C", "darkgreen", "red", "orange")[.x],
-      n_dark = 
-        DF_color_palletes %>% count(continent_name) %>% .[.x, 2] %>% pull(n) / 2,
-      # (DF_color_palletes[.x, 2]$n) / 2,
-      darkness = 0.5,
-      rotate_dark = -51,
-      saturation_dark = -0.14,
-      n_light = 
-        DF_color_palletes %>% count(continent_name) %>% .[.x, 2] %>% pull(n) / 2,
-        # (DF_color_palletes[.x, 2]$n) / 2,
-      lightness = 0.8,
-      rotate_light = 67,
-      saturation_light = 0.2
-    ) %>% as_tibble() %>% 
-      sample_n(DF_color_palletes %>% count(continent_name) %>% .[.x, 2] %>% pull(n))) %>%
-  bind_rows() %>% 
-  mutate(country = DF_color_palletes %>% count(country)%>% pull(country))
+# DF_pallette_final = 1:nrow(DF_color_palletes %>% count(continent_name)) %>% 
+#   
+#   map( ~
+#     
+#     colorscale::create_single_scale(
+#       color = c("#1D9A6C", "darkgreen", "red", "orange")[.x],
+#       n_dark = 
+#         DF_color_palletes %>% count(continent_name) %>% .[.x, 2] %>% pull(n) / 2,
+#       # (DF_color_palletes[.x, 2]$n) / 2,
+#       darkness = 0.5,
+#       rotate_dark = -51,
+#       saturation_dark = -0.14,
+#       n_light = 
+#         DF_color_palletes %>% count(continent_name) %>% .[.x, 2] %>% pull(n) / 2,
+#         # (DF_color_palletes[.x, 2]$n) / 2,
+#       lightness = 0.8,
+#       rotate_light = 67,
+#       saturation_light = 0.2
+#     ) %>% as_tibble() %>% 
+#       sample_n(DF_color_palletes %>% count(continent_name) %>% .[.x, 2] %>% pull(n))) %>%
+#   bind_rows() %>% 
+#   mutate(country = DF_color_palletes %>% count(country)%>% pull(country))
 
 
 # DF_pallette_final
 # pallette_final <- setNames(as.character(DF_pallette_final$country), DF_pallette_final$value)
-pallette_final <- setNames(as.character(DF_pallette_final$value), DF_pallette_final$country)
+# pallette_final <- setNames(as.character(DF_pallette_final$value), DF_pallette_final$country)
 
     
       # cols <- c("8" = "red", "4" = "blue", "6" = "darkgreen", "10" = "orange")
