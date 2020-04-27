@@ -2,7 +2,7 @@ download_or_load_JH_API <-
   
   purrr::safely(
     
-    function(URL = "https://api.covid19api.com/all", file_name, hours_threshold = 16, maxTimes = 5) {
+    function(URL = "https://api.covid19api.com/all", file_name, hours_threshold = 12, maxTimes = 5) {
 
       file_info_JHU <- file.info(file_name)$mtime
       
