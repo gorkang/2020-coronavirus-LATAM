@@ -28,8 +28,10 @@ data_download()
 
 
 
+# Build plots -------------------------------------------------------------
+
 source("R/LATAM_plot1.R")
-p1_to_save
+# p1_to_save
 source("R/LATAM_plot2.R")
 # p2_to_save
 
