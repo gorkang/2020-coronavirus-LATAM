@@ -63,8 +63,6 @@ INPUT_cases_deaths = cases_deaths
 INPUT_continent_name_input = c("Asia", "Europe", "North America", "Latin America")
 
 
-# countries_plot = c("USA", "Spain", "Italy", "France", "Germany", "United Kingdom", "Chile", "Denmark")
-
 countries_plot = dta_raw %>% 
   left_join(DF_population_countries %>% select(country, continent_name)) %>%
   filter(continent_name %in% INPUT_continent_name_input) %>% 
@@ -179,25 +177,11 @@ if (any(' ' != VAR_highlight)) {
 
 
 # Show accumulated or daily plot
-# if (accumulated_daily_pct == "daily") {
-#   DF_plot = final_df %>% 
-#     rename(value_temp = value,
-#            value = diff)
-# } else if (accumulated_daily_pct == "%") {
-#   DF_plot = final_df %>% 
-#     rename(value_temp = value,
-#            value = diff_pct) %>% 
-#     mutate(value = value * 100)
-# } else {
   DF_plot = final_df
-# }
 
 # Define which countries get a smooth (have enough points)
 VALUE_span = 3
 counts_filter = DF_plot %>% count(country) %>% filter(n > VALUE_span)
-
-
-
 
 
 
@@ -207,13 +191,7 @@ counts_filter = DF_plot %>% count(country) %>% filter(n > VALUE_span)
 
 
 # LIMITS of DATA
-# if (accumulated_daily_pct == "daily") {
-#   MAX_y = max(final_df$diff, na.rm = TRUE) * 1.1
-# } else if (accumulated_daily_pct == "%") {
-#   MAX_y = max(final_df$diff_pct, na.rm = TRUE) * 100
-# } else {
   MAX_y = max(final_df$value, na.rm = TRUE) * 1.1
-# }
 
 # To avoid error
 if (is.infinite(max(final_df$days_after_100, na.rm = TRUE))) {
@@ -224,17 +202,11 @@ if (is.infinite(max(final_df$days_after_100, na.rm = TRUE))) {
 
 # If we use 1.1 * to avoid overlaping y axis goes up a lot
 line_factor = 1
-# if (accumulated_daily_pct == "%") {
-#   growth_line = tibble(
-#     value = cumprod(c(100, rep((100 + VAR_growth) / 100, line_factor * max_finaldf_days_after_100))),
-#     days_after_100 = 0:(line_factor * max_finaldf_days_after_100)) %>% 
-#     filter(value <= MAX_y)
-# } else {
+
   growth_line = tibble(
     value = cumprod(c(VAR_min_n, rep((100 + VAR_growth) / 100, line_factor * max_finaldf_days_after_100))),
     days_after_100 = 0:(line_factor * max_finaldf_days_after_100)) %>% 
     filter(value <= MAX_y)
-# }
 
 
 
@@ -243,23 +215,6 @@ line_factor = 1
 
 
 # Text annotation Latam ---------------------------------------------------
-
-# ann_position = 1:nrow(DF_plot %>% filter(continent_name %in% c("Europe", "Latin America", "North America")) %>% ungroup() %>% distinct(continent_name)) %>% 
-#   map( ~ max(DF_plot %>% filter(continent_name == DF_plot %>% filter(continent_name %in% c("Europe", "Latin America", "North America")) %>% ungroup() %>% arrange(continent_name) %>%  distinct(continent_name) %>% .[.x, 1]) %>% pull(days_after_100))) %>% unlist()
-# 
-# 
-# ann_text <-
-#   data.frame(
-#     days_after_100 = (ann_position + max(DF_plot$days_after_100))/2, # 39 Italy, # 55 China
-#     value = 10,
-#     lab = "text",
-#     country = NA_character_,
-#     continent_name = factor(
-#       c("Europe", "Latin America", "North America"),
-#       levels = c("Europe", "Latin America", "North America")
-#     )
-#   )
-
 
   reference_continent = final_df %>% filter(days_after_100 == max(days_after_100)) %>% arrange(desc(days_after_100)) %>% head(1) %>% pull("continent_name")
   reference_country = final_df %>% filter(days_after_100 == max(days_after_100)) %>% arrange(desc(days_after_100)) %>% head(1) %>% pull("country")
@@ -303,8 +258,6 @@ line_factor = 1
 
 p_temp = ggplot(data = DF_plot, 
                 aes(x = days_after_100, y = value, group = as.factor(country), color = continent_name)) +
-  # aes(x = days_after_100, y = value, group = as.factor(country), color = highlight)) +
-  # scale_color_hue(l = 50) +
   
   # Trend line
   geom_line(data = growth_line, aes(days_after_100, value), linetype = "dotted", inherit.aes = FALSE, alpha = 1, size = .9) +
@@ -314,21 +267,14 @@ p_temp = ggplot(data = DF_plot,
   
   scale_x_continuous(breaks = seq(0, max(final_df$days_after_100, na.rm = TRUE) + 1, 10)) +
   labs(
-    # title = paste0("Coronavirus confirmed ", cases_deaths , if (relative == TRUE) " / million people"),
-    # subtitle = paste0("Starting at ",  "10" ," or more accumulated ", cases_deaths),
-    # 
-    # subtitle = paste0("Arranged by number of days since ",  VAR_min_n ," or more ", cases_deaths),
     x = paste0("Days after ",  VAR_min_n ," accumulated ", cases_deaths),
     y = paste0("Confirmed ", accumulated_daily_pct, " ", cases_deaths, " (log)",  if (relative == TRUE) " / million people")
-    # caption = paste0("Sources: Johns Hopkins CSSE")
   ) +
   theme_minimal(base_size = 12) +
   
   theme(legend.position = "none",
         panel.grid.minor = element_line(size = 0.25),
         panel.spacing = unit(1, "lines")
-        # linetype = 'solid',
-        # colour = "black")
   )
 
 # Smooth or not
@@ -375,15 +321,9 @@ if (log_scale == TRUE) {
 
 
 # Annotation trend line
-# if (accumulated_daily_pct == "%") {
-#   x_axis = max(growth_line$days_after_100, na.rm = TRUE) - .5
-#   y_axis = min(growth_line$value, na.rm = TRUE) # MIN
-# } else {
   which_position = 22
   x_axis = max(growth_line$days_after_100[which_position], na.rm = TRUE) - 3.5
   y_axis = max(growth_line$value[which_position], na.rm = TRUE)  # MAX 
-  # message("X: ", x_axis, " Y: ", y_axis)
-# }
 
 p1_to_save <- p_temp + 
   annotate(geom = "text",
@@ -396,9 +336,8 @@ p1_to_save <- p_temp +
   
   # Country label
   ggrepel::geom_label_repel(aes(label = name_end), show.legend = FALSE, segment.color = "grey", segment.size  = .15, alpha = .75, size = 3, seed = 30) +
-  geom_rect(data = data.frame(continent_name = c("Europe", "Latin America", "North America")),
+  geom_rect(data = data.frame(continent_name = list_remaining_continents_plot), #c("Europe", "North America", "Latin America")),
             aes(
-                # xmin = max(DF_plot %>% filter(continent_name == "Latin America") %>% pull(days_after_100)),
                 xmin = ann_position,
                 xmax = Inf,
                 ymin = 0,
