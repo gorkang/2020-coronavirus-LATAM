@@ -147,7 +147,14 @@ DF_population_countries = read_csv(here::here("data/population_countries.csv"),
         
         # Rolling mean of last 7 days --------------
         mutate(value = map_dbl(1:n(), ~ mean(value[(max(.x - 7, 1)):.x], na.rm = FALSE))) %>%
-        filter(value_temp >= 10)
+        filter(value_temp >= 10) %>% 
+        
+        # Avoid countries last point falling below 1 (label wont appear)
+        mutate(value = 
+                 case_when(
+                   name_end != "" & value < 1 ~ 1,
+                   TRUE ~ value
+                 ))
       
     
   # Define which countries get a smooth (have enough points)
@@ -197,12 +204,11 @@ DF_population_countries = read_csv(here::here("data/population_countries.csv"),
       MIN_y = min(dta_temp$diff, na.rm = TRUE, na.rm = TRUE) * 0.1 # In Log scale can't use 0
       if (MIN_y <= 0) MIN_y = 1
     
-    if (MIN_y == 0) MIN_y = 1
 
       
     # Scale, log
     p_temp = p_temp +
-      scale_y_log10(breaks = scales::log_breaks(n = 10), labels = function(x) format(x, big.mark = ",", scientific = FALSE), limits = c(MIN_y, MAX_y)) 
+      scale_y_log10(breaks = scales::log_breaks(n = 10), labels = function(x) format(x, big.mark = ",", scientific = FALSE), limits = c(MIN_y, MAX_y))
     
     p2_to_save <- p_temp + 
         
