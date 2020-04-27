@@ -401,11 +401,19 @@ server <- function(input, output, session) {
                                            )) %>%
                     
                     # GET RID of 0's (don't work in log scale) [WILL CAUSE PROBLEMS LATTER?]
-                    mutate(value = 
-                               case_when(
-                                   value == 0 ~ NA_real_,
-                                   TRUE ~ value
-                               )) %>% 
+                    # mutate(value = 
+                    #            case_when(
+                    #                value == 0 ~ NA_real_,
+                    #                TRUE ~ value
+                    #            )) %>% 
+                  
+                  # Avoid countries last point falling below 1 (label wont appear)
+                  mutate(value = 
+                           case_when(
+                             name_end != "" & value < 1 ~ 1,
+                             TRUE ~ value
+                           )) %>% 
+                  
                     filter(value_temp >= 10)
 
             }
