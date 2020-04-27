@@ -695,7 +695,7 @@ server <- function(input, output, session) {
 
     output$downloadPlot <- downloadHandler(
         filename = function() { paste(Sys.Date(), "_corona.png", sep = "") },
-        content = function(file) { ggsave(file, plot = final_plot12(), device = "png", width = 16, height = 9) }
+        content = function(file) { ggsave(file, plot = final_plot12(), device = "png", width = 19.2, height = 10.8, dpi = 300) }
     )
 
 }
