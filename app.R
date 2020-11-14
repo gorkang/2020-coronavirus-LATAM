@@ -6,6 +6,7 @@ library(dplyr)
 library(ggplot2)
 library(ggrepel)
 library(httr)
+library(magrittr)
 library(purrr)
 library(readr)
 library(scales)
@@ -22,7 +23,9 @@ library(vroom)
 
 cases_deaths = "deaths"
 
-source(here::here("R/download_or_load_JH_API.R"))
+# source(here::here("R/download_or_load_JH_API.R"))
+source(here::here("R/download_or_load_OWID.R"))
+
 
 source(here::here("R/data-download.R"))
 source(here::here("R/data-preparation.R"))
@@ -34,8 +37,8 @@ source(here::here("R/data-preparation-menu.R"))
 minutes_to_check_downloads = 30
 auto_invalide <- reactiveTimer(minutes_to_check_downloads * 60 * 1000)
 
-file_info_JHU <- file.info("outputs/raw_JH.csv")$mtime
-if( is_empty(file_info_JHU)) file_info_JHU = "..."
+file_info_OWID <- file.info("outputs/raw_OWID.csv")$mtime
+if( is_empty(file_info_OWID)) file_info_OWID = "..."
 
 
 dta_raw = read_csv(here::here("outputs/raw_data.csv"),
@@ -158,7 +161,8 @@ ui <-
     ),
     HTML("&nbsp;&nbsp;"),
     div(style="display:inline-block;30%;text-align: center;",
-        downloadButton('downloadPlot', 'Plot')
+        downloadButton('downloadPlot', 'Plot PNG'),
+        downloadButton('downloadPlot2', 'Plot TIF')
     ),
 
     HTML("<BR><BR>"),
@@ -169,7 +173,7 @@ ui <-
 
     p(HTML(
         paste0(
-            a("Johns Hopkins Data", href="https://covid19api.com/", target = "_blank"), " updated on: ", as.character(file_info_JHU), " GMT"
+            a("Our World in Data", href="https://ourworldindata.org/", target = "_blank"), " updated on: ", as.character(file_info_OWID), " GMT"
         )
     )
     )
@@ -189,7 +193,7 @@ ui <-
             <B>(Top)</B> Temporal dynamics of accumulated deaths.  The accumulated deaths grow over time for all the countries and regions by days since the first 10 reported deaths. The slope represents the rate of growth, and the length of the trajectory, the number of days since the death toll reached 10 for that country. This shows the time scale of the epidemic for each country and region. A dashed line of 30% growth in each region help to identify the similar growing rate across countries and regions.  A gray headset is shown to help visualize the time gap in comparison with the start of the COVID-19 outbreak in China. It can be appreciated how the LACs are, compared to most countries/regions, in the early days, although their growth is in line with Europe or North America. <BR><BR>
             <B>(Bottom)</B> Exponential growth of confirmed daily deaths by countries and regions. Rate of change shown as daily new deaths (weekly average) divided by total deaths. Moving in the diagonal implies the growth rate is exponential. As we can appreciate, all regions except Asia are growing exponentially, with Europe stating to slowly deviate from the diagonal. Although the number of deaths is still low in most LACs (except Brazil), the rate of change is clearly exponential and resembling other regions. Plots present a line for each country, plus a bold line with a smooth conditional mean by region (using the loess method). Both panels show how the epidemic started relatively late in LACs, which gave them a time buffer to react. Despite this, the global trajectories of the regions clearly suggest exponential growth similar to Europe or North America. <BR><BR>
             A version of the plot above appears in:  [LINK TO PAPER HERE]<BR><BR>
-            Data retrieved from <a href='https://github.com/CSSEGISandData/COVID-19', target = '_blank'>Johns Hopkins CSSE</a> through <a href='https://covid19api.com/', target = '_blank'>covid19api</a>.
+            Data retrieved from <a href='https://github.com/CSSEGISandData/COVID-19', target = '_blank'>Our World in Data</a> through <a href='https://github.com/owid/covid-19-data/tree/master/public/data', target = '_blank'>OWID</a>.
             The code for the creation of these plots can be found in <a href='https://github.com/gorkang/2020-coronavirus-LATAM', target = '_blank'>Github: 2020-coronavirus-LATAM</a>."
 
             )),
@@ -246,6 +250,7 @@ server <- function(input, output, session) {
     
     reactive_countries = reactive({ 
        
+      # input = tibble(continent_name = c("Asia", "Europe"))
             list_countries = dta_raw %>%
                 left_join(DF_population_countries %>% select(country, continent_name), by = "country") %>%
                 filter(continent_name %in% input$continent_name) %>%
@@ -256,9 +261,13 @@ server <- function(input, output, session) {
                 filter(! country %in% input$filter_countries) %>%
                 pull(country) 
             
+            # INPUT_cases_deaths = "deaths"
+            # INPUT_min_n = 1
+            # INPUT_relative = "relative"
+            # reactive_countries =
             
             data_preparation(
-                data_source = "JHU",
+                data_source = "OWID",
                 cases_deaths = INPUT_cases_deaths,
                 countries_plot = list_countries,
                 min_n = INPUT_min_n,
@@ -307,7 +316,7 @@ server <- function(input, output, session) {
             # Launch data preparation
             if (!is.null(reactive_countries_debounced())) {
 
-                    
+              # final_df1 = reactive_countries %>% 
                 dta_temp = reactive_countries_debounced() %>% 
                   
                   filter(value >= INPUT_min_n) %>% 
@@ -327,7 +336,7 @@ server <- function(input, output, session) {
   
                   # Get rid of the latest data if it either 0 or negative
                   filter( !(days_after_100 == max(days_after_100, na.rm = TRUE) & diff <= 0)) %>%
-                  filter(source == "JHU") %>%
+                  filter(source == "OWID") %>%
   
   
                   # Create name_end labels
@@ -359,6 +368,7 @@ server <- function(input, output, session) {
             # Launch data preparation
             if (!is.null(reactive_countries_debounced())) {
 
+                # dta_temp = reactive_countries %>% 
                 dta_temp = reactive_countries_debounced() %>% 
                   
                   filter(value >= INPUT_min_n) %>% 
@@ -378,7 +388,7 @@ server <- function(input, output, session) {
 
                   # Get rid of the latest data if it either 0 or negative
                   filter( !(days_after_100 == max(days_after_100, na.rm = TRUE) & diff <= 0)) %>%
-                  filter(source == "JHU") %>%
+                  filter(source == "OWID") %>%
 
                   # Create name_end labels
                   mutate(
@@ -386,7 +396,8 @@ server <- function(input, output, session) {
                           case_when(
                               days_after_100 == max(days_after_100, na.rm = TRUE) & time == max(time, na.rm = TRUE) ~ paste0(as.character(country)),
                               TRUE ~ ""))
-
+                # final_df2 = dta_temp %>%
+                  
                 dta_temp %>%
 
                     rename(value_temp = value,
@@ -439,6 +450,9 @@ server <- function(input, output, session) {
             }
 
             line_factor = 1
+            # INPUT_growth = 1
+            # MAX_y = 1
+            # growth_line =
                 tibble(
                     value = cumprod(c(INPUT_min_n, rep((100 + INPUT_growth) / 100, line_factor * max_finaldf_days_after_100))),
                     days_after_100 = 0:(line_factor * max_finaldf_days_after_100)) %>%
@@ -514,7 +528,7 @@ server <- function(input, output, session) {
                 # Country points (last one bigger)
                 geom_point(aes(size = .005 + as.integer(final_df1()$name_end != "" & final_df1()$name_end != "*") - .5), alpha = .1) +
 
-                scale_x_continuous(breaks = breaks_pretty(n = 10)) +
+                scale_x_continuous(breaks = scales::breaks_pretty(n = 10)) +
 
                 labs(
                     x = paste0("Days after ",  INPUT_min_n ," accumulated ", "deaths"),
@@ -696,6 +710,10 @@ server <- function(input, output, session) {
     output$downloadPlot <- downloadHandler(
         filename = function() { paste(Sys.Date(), "_corona.png", sep = "") },
         content = function(file) { ggsave(file, plot = final_plot12(), device = "png", width = 19.2, height = 10.8, dpi = 300) }
+    )
+    output$downloadPlot2 <- downloadHandler(
+      filename = function() { paste(Sys.Date(), "_corona.tif", sep = "") },
+      content = function(file) { ggsave(file, plot = final_plot12(), device = "tiff", width = 19.2, height = 10.8, dpi = 300) }
     )
 
 }

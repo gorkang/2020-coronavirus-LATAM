@@ -46,7 +46,7 @@ combined_plot =
   )
 
 combined_plot
-ggsave("outputs/plots/LATAM_combined_plot.png", combined_plot, width = 19.2, height = 10.8, dpi = 300)
+ggsave("outputs/plots/LATAM_combined_plot.png", combined_plot, width = 19, height = 11, dpi = 600)
 
 # xxx = 1.2
 # c(16 * xxx, 9 * xxx)

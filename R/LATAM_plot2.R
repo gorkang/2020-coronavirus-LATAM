@@ -1,5 +1,10 @@
 # library(tidyverse)
-# source("R/data-preparation.R")
+source("R/data-preparation.R")
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(purrr)
+library(readr)
 
 dta_raw = read_csv(here::here("outputs/raw_data.csv"), 
                    col_types = 
@@ -100,7 +105,7 @@ DF_population_countries = read_csv(here::here("data/population_countries.csv"),
 # Data preparation --------------------------------------------------------
 
   dta_temp = data_preparation(
-    data_source = "JHU",
+    data_source = "OWID",
     cases_deaths = INPUT_cases_deaths,
     countries_plot = INPUT_countries_plot,
     min_n = INPUT_min_n,
@@ -123,7 +128,7 @@ DF_population_countries = read_csv(here::here("data/population_countries.csv"),
     
     # Get rid of the latest data if it either 0 or negative
     filter( !(days_after_100 == max(days_after_100, na.rm = TRUE) & diff <= 0)) %>% 
-    filter(source == "JHU") %>% 
+    filter(source == "OWID") %>% 
     
     
     # Create name_end labels

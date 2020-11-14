@@ -1,5 +1,7 @@
 data_preparation <- function(data_source = "JHU", cases_deaths = "cases", countries_plot = "", min_n = 1, relative = FALSE) {
-
+  library(dplyr)
+  library(readr)
+  
   
   # Data preparation --------------------------------------------------------
   
