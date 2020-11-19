@@ -25,8 +25,37 @@ data_preparation <- function(data_source = "JHU", cases_deaths = "cases", countr
              )) %>% 
     mutate(country = 
              case_when(
-               country == "USA" ~ "US",
+               
+               # country == "American Samoa" ~ , 
+               # country == "Solomon Islands" ~ , 
+               country == "Brunei Darussalam" ~ "Brunei", 
+               country == "Faroe Islands" ~ "Faeroe Islands", 
+               country == "Palestinian Territory" ~ "Palestine", 
+               # country == "Kiribati" ~ , 
+               # country == "Korea, North" ~ , 
+               country == "Korea (South)" ~ "South Korea", 
+               country == "Kyrgyz Republic" ~ "Kyrgyzstan", 
+               # country == "Lao People's Democratic Republic ~ ",
+               # country == "Libyan Arab Jamahiriya" ~ , 
+               # country == "Macao" ~ , 
+               # country == "Nauru" ~ , 
+               country == "Curaçao" ~ "Curacao", 
+               country == "Sint Maarten (Netherlands)" ~ "Sint Maarten (Dutch part)", 
+               # country == "Vanuatu" ~ , 
+               # country == "Micronesia" ~ , 
+               # country == "Marshall Islands" ~ , 
+               # country == "Palau" ~ , 
+               country == "Timor-Leste" ~ "Timor",
+               # country == "Saint Martin" ~ "",
+               country == "Slovakia (Slovak Republic)" ~ "Slovakia", 
+               country == "Syrian Arab Republic" ~ "Syria", 
+               # country == "Tonga" ~ , 
+               # country == "Turkmenistan" ~ , 
+               # country == "Tuvalu" ~ , 
+               country == "USA" ~ "United States",
+               # country == "Samoa" ~ , 
                TRUE ~ country
+               
              )) %>% 
     mutate(continent_name = as.factor(continent_name))
   
